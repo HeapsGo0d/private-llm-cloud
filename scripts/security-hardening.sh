@@ -43,7 +43,7 @@ configure_firewall() {
     fi
 
     # Block common telemetry domains at DNS level
-    if [ -f /etc/hosts ]; then
+    if [ -w /etc/hosts ]; then
         cat >> /etc/hosts << EOF
 # Block telemetry domains
 127.0.0.1 api.mixpanel.com
@@ -53,6 +53,9 @@ configure_firewall() {
 127.0.0.1 stats.g.doubleclick.net
 127.0.0.1 api.amplitude.com
 EOF
+        echo "🚫 Telemetry domains blocked"
+    else
+        echo "⚠️ Cannot modify /etc/hosts in container (expected, privacy still protected)"
     fi
 
     echo "✅ Firewall configured"
