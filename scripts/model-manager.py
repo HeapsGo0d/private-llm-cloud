@@ -25,14 +25,23 @@ from cryptography.fernet import Fernet
 from tqdm import tqdm
 
 # Import our robust download utilities
-from download_utils import (
-    atomic_download,
-    get_download_info,
-    ensure_aria2,
-    DownloadError,
-    ValidationError,
-    ICONS
-)
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+try:
+    from download_utils import (
+        atomic_download,
+        get_download_info,
+        ensure_aria2,
+        DownloadError,
+        ValidationError,
+        ICONS
+    )
+    DOWNLOAD_UTILS_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: download_utils not available: {e}")
+    DOWNLOAD_UTILS_AVAILABLE = False
+    ICONS = {'success': '✅', 'error': '❌', 'warning': '⚠️', 'download': '📥'}
 
 
 class ModelFormat(Enum):
@@ -382,6 +391,11 @@ class ModelManager:
         """
         try:
             self.logger.info(f"{ICONS['download']} Starting robust download: {filename}")
+
+            # Check if download utils are available
+            if not DOWNLOAD_UTILS_AVAILABLE:
+                self.logger.warning(f"{ICONS['warning']} download_utils not available, using fallback")
+                return self._fallback_download(url, output_dir, filename)
 
             # Pre-flight check for aria2c
             if not ensure_aria2():

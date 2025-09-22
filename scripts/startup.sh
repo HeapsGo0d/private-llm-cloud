@@ -21,6 +21,11 @@ LOG_FILE="/app/logs/startup.log"
 PID_FILE="/app/data/startup.pid"
 PRIVACY_STATE_MANAGER="$SCRIPT_DIR/privacy_state_manager.py"
 
+# Make sure the privacy state manager is executable
+if [ -f "$PRIVACY_STATE_MANAGER" ]; then
+    chmod +x "$PRIVACY_STATE_MANAGER"
+fi
+
 # Exit codes for different failure types
 EXIT_SECURITY_FAILED=10
 EXIT_PRIVACY_FAILED=11
