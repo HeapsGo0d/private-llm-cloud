@@ -17,10 +17,22 @@ import hashlib
 import shutil
 
 import httpx
+import requests
 from huggingface_hub import HfApi, model_info, snapshot_download
 from transformers import AutoConfig, AutoTokenizer
 import torch
 from cryptography.fernet import Fernet
+from tqdm import tqdm
+
+# Import our robust download utilities
+from download_utils import (
+    atomic_download,
+    get_download_info,
+    ensure_aria2,
+    DownloadError,
+    ValidationError,
+    ICONS
+)
 
 
 class ModelFormat(Enum):
@@ -348,6 +360,112 @@ class ModelManager:
             return ModelFormat.PYTORCH
         else:
             return ModelFormat.UNKNOWN
+
+    def download_model_file_robust(
+        self,
+        url: str,
+        output_dir: Path,
+        filename: str,
+        expected_hash: Optional[str] = None
+    ) -> bool:
+        """
+        Download a single model file using robust aria2c-based system
+
+        Args:
+            url: URL to download from
+            output_dir: Directory to save file
+            filename: Name of output file
+            expected_hash: Optional hash for integrity verification
+
+        Returns:
+            True if download successful, False otherwise
+        """
+        try:
+            self.logger.info(f"{ICONS['download']} Starting robust download: {filename}")
+
+            # Pre-flight check for aria2c
+            if not ensure_aria2():
+                self.logger.warning(f"{ICONS['warning']} aria2c not available, falling back to requests")
+                return self._fallback_download(url, output_dir, filename)
+
+            # Get download info
+            download_info = get_download_info(url)
+            if not download_info.get('valid', False):
+                self.logger.error(f"{ICONS['error']} Invalid download URL: {url}")
+                return False
+
+            # Use atomic download with our robust system
+            success = atomic_download(
+                url=url,
+                output_dir=output_dir,
+                filename=filename,
+                token=self.hf_token,
+                expected_hash=expected_hash
+            )
+
+            if success:
+                self.logger.info(f"{ICONS['success']} Robust download completed: {filename}")
+            else:
+                self.logger.error(f"{ICONS['error']} Robust download failed: {filename}")
+
+            return success
+
+        except (DownloadError, ValidationError) as e:
+            self.logger.error(f"{ICONS['error']} Download error: {e}")
+            return False
+        except Exception as e:
+            self.logger.error(f"{ICONS['error']} Unexpected error in robust download: {e}")
+            return False
+
+    def _fallback_download(self, url: str, output_dir: Path, filename: str) -> bool:
+        """
+        Fallback download method when aria2c is not available
+
+        Args:
+            url: URL to download from
+            output_dir: Directory to save file
+            filename: Name of output file
+
+        Returns:
+            True if download successful, False otherwise
+        """
+        try:
+            self.logger.info(f"{ICONS['warning']} Using fallback download method")
+
+            output_dir.mkdir(parents=True, exist_ok=True)
+            file_path = output_dir / filename
+
+            headers = {}
+            if self.hf_token:
+                headers['Authorization'] = f'Bearer {self.hf_token}'
+
+            response = requests.get(url, headers=headers, stream=True, timeout=30)
+            response.raise_for_status()
+
+            total_size = int(response.headers.get('content-length', 0))
+
+            with open(file_path, 'wb') as f, tqdm(
+                desc=filename,
+                total=total_size,
+                unit='B',
+                unit_scale=True
+            ) as pbar:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        pbar.update(len(chunk))
+
+            # Validate file size
+            if file_path.stat().st_size < 1024 * 1024:  # 1MB minimum
+                self.logger.error(f"{ICONS['error']} Downloaded file too small")
+                return False
+
+            self.logger.info(f"{ICONS['success']} Fallback download completed")
+            return True
+
+        except Exception as e:
+            self.logger.error(f"{ICONS['error']} Fallback download failed: {e}")
+            return False
 
     async def download_model(
         self,

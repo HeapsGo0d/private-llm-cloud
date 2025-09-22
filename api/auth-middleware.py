@@ -142,7 +142,7 @@ class AuthenticationManager:
                 encrypted_data = f.read()
 
             decrypted_data = self.cipher.decrypt(encrypted_data)
-            users_data = eval(decrypted_data.decode())  # In production, use proper serialization
+            users_data = json.loads(decrypted_data.decode())
 
             users = {}
             for username, user_data in users_data.items():
@@ -170,7 +170,7 @@ class AuthenticationManager:
                     "rate_limit": user.rate_limit
                 }
 
-            data_str = str(users_data)  # In production, use proper serialization
+            data_str = json.dumps(users_data)
             encrypted_data = self.cipher.encrypt(data_str.encode())
 
             with open(self.users_file, "wb") as f:
@@ -191,7 +191,7 @@ class AuthenticationManager:
                 encrypted_data = f.read()
 
             decrypted_data = self.cipher.decrypt(encrypted_data)
-            sessions_data = eval(decrypted_data.decode())
+            sessions_data = json.loads(decrypted_data.decode())
 
             sessions = {}
             for session_id, session_data in sessions_data.items():
@@ -226,7 +226,7 @@ class AuthenticationManager:
                     "is_active": session.is_active
                 }
 
-            data_str = str(sessions_data)
+            data_str = json.dumps(sessions_data)
             encrypted_data = self.cipher.encrypt(data_str.encode())
 
             with open(self.sessions_file, "wb") as f:

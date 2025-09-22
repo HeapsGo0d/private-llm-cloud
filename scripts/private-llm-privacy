@@ -1,0 +1,361 @@
+#!/bin/bash
+"""
+Private LLM Cloud - Privacy Control Terminal Interface
+Based on proven Ignition privacy command patterns
+"""
+
+# Color definitions for terminal output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+WHITE='\033[1;37m'
+NC='\033[0m' # No Color
+
+# Icons for consistent output
+PRIVACY_ICON="🔒"
+MONITOR_ICON="👁️"
+SUCCESS_ICON="✅"
+ERROR_ICON="❌"
+WARNING_ICON="⚠️"
+INFO_ICON="ℹ️"
+BLOCK_ICON="🚫"
+ACTIVE_ICON="🟢"
+INACTIVE_ICON="🔴"
+
+# Script configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PRIVACY_STATE_MANAGER="$SCRIPT_DIR/privacy_state_manager.py"
+LOG_FILE="/app/logs/privacy_commands.log"
+STATE_FILE="/app/data/privacy_state.json"
+
+# Ensure log directory exists
+mkdir -p "$(dirname "$LOG_FILE")"
+
+# Logging function
+log() {
+    local level=$1
+    local message=$2
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+
+    case $level in
+        "INFO")  echo -e "${GREEN}[INFO]${NC} $message" | tee -a "$LOG_FILE" ;;
+        "WARN")  echo -e "${YELLOW}[WARN]${NC} $message" | tee -a "$LOG_FILE" ;;
+        "ERROR") echo -e "${RED}[ERROR]${NC} $message" | tee -a "$LOG_FILE" ;;
+        "DEBUG") echo -e "${CYAN}[DEBUG]${NC} $message" | tee -a "$LOG_FILE" ;;
+    esac
+}
+
+# Check if privacy state manager is available
+check_privacy_manager() {
+    if [ ! -f "$PRIVACY_STATE_MANAGER" ]; then
+        log "ERROR" "${ERROR_ICON} Privacy state manager not found: $PRIVACY_STATE_MANAGER"
+        return 1
+    fi
+
+    if ! python3 -c "import sys; sys.path.append('$SCRIPT_DIR'); from privacy_state_manager import PrivacyStateManager" 2>/dev/null; then
+        log "ERROR" "${ERROR_ICON} Privacy state manager dependencies not available"
+        return 1
+    fi
+
+    return 0
+}
+
+# Show current privacy status
+show_status() {
+    echo -e "${PRIVACY_ICON} ${WHITE}Private LLM Cloud - Privacy Status${NC}"
+    echo "=========================================="
+
+    if ! check_privacy_manager; then
+        return 1
+    fi
+
+    # Get status from privacy state manager
+    python3 "$PRIVACY_STATE_MANAGER" status
+
+    echo ""
+    echo -e "${INFO_ICON} System Information:"
+
+    # Check process activity
+    local aria2_count=$(pgrep -f aria2c | wc -l)
+    local python_count=$(pgrep -f python | wc -l)
+
+    echo -e "  Active Downloads: ${aria2_count} aria2c processes"
+    echo -e "  Python Processes: ${python_count}"
+
+    # Check network connections
+    if command -v ss >/dev/null 2>&1; then
+        local connections=$(ss -tuln | grep LISTEN | wc -l)
+        echo -e "  Listening Ports: ${connections}"
+    fi
+
+    # Check last state change
+    if [ -f "$STATE_FILE" ]; then
+        local last_update=$(stat -c %Y "$STATE_FILE" 2>/dev/null || echo "0")
+        local current_time=$(date +%s)
+        local age=$((current_time - last_update))
+        echo -e "  State File Age: ${age}s"
+    fi
+}
+
+# Monitor privacy state in real-time
+monitor_privacy() {
+    echo -e "${MONITOR_ICON} ${WHITE}Private LLM Cloud - Real-time Privacy Monitor${NC}"
+    echo "=============================================="
+    echo "Press Ctrl+C to stop monitoring"
+    echo ""
+
+    if ! check_privacy_manager; then
+        return 1
+    fi
+
+    local count=0
+    while true; do
+        clear
+        echo -e "${MONITOR_ICON} ${WHITE}Privacy Monitor - Update #$((++count))${NC}"
+        echo "Time: $(date)"
+        echo "=============================================="
+
+        # Show current status
+        python3 "$PRIVACY_STATE_MANAGER" status
+
+        echo ""
+        echo -e "${INFO_ICON} Live Process Monitoring:"
+
+        # Monitor downloads
+        local aria2_procs=$(pgrep -f aria2c)
+        if [ -n "$aria2_procs" ]; then
+            echo -e "  ${ACTIVE_ICON} aria2c downloads active: $(echo $aria2_procs | wc -w) processes"
+        else
+            echo -e "  ${INACTIVE_ICON} No aria2c downloads"
+        fi
+
+        # Monitor HuggingFace activity
+        local hf_procs=$(pgrep -f "huggingface\|snapshot_download")
+        if [ -n "$hf_procs" ]; then
+            echo -e "  ${ACTIVE_ICON} HuggingFace activity: $(echo $hf_procs | wc -w) processes"
+        else
+            echo -e "  ${INACTIVE_ICON} No HuggingFace activity"
+        fi
+
+        # Monitor network connections
+        if command -v ss >/dev/null 2>&1; then
+            local external_conns=$(ss -tuln | grep -v '127.0.0.1\|::1' | grep LISTEN | wc -l)
+            echo -e "  ${INFO_ICON} External listening ports: $external_conns"
+        fi
+
+        echo ""
+        echo "Next update in 5 seconds..."
+
+        # Update state
+        python3 "$PRIVACY_STATE_MANAGER" update >/dev/null 2>&1
+
+        sleep 5
+    done
+}
+
+# Show privacy summary
+show_summary() {
+    echo -e "${PRIVACY_ICON} ${WHITE}Private LLM Cloud - Privacy Summary${NC}"
+    echo "======================================"
+
+    if ! check_privacy_manager; then
+        return 1
+    fi
+
+    # Get basic status
+    local status_output=$(python3 "$PRIVACY_STATE_MANAGER" status 2>/dev/null)
+
+    echo "$status_output" | head -10
+
+    echo ""
+    echo -e "${INFO_ICON} Quick Summary:"
+
+    # Extract key information
+    if echo "$status_output" | grep -q "monitoring_only_mode.*true"; then
+        echo -e "  ${WARNING_ICON} Running in monitoring-only mode"
+    else
+        echo -e "  ${SUCCESS_ICON} Active privacy protection enabled"
+    fi
+
+    if echo "$status_output" | grep -q "downloads_active.*true"; then
+        echo -e "  ${ACTIVE_ICON} Downloads currently active"
+    else
+        echo -e "  ${INACTIVE_ICON} No active downloads"
+    fi
+
+    # Check log file size
+    if [ -f "$LOG_FILE" ]; then
+        local log_size=$(du -h "$LOG_FILE" 2>/dev/null | cut -f1)
+        echo -e "  ${INFO_ICON} Privacy log size: $log_size"
+    fi
+}
+
+# Force emergency block
+emergency_block() {
+    echo -e "${BLOCK_ICON} ${RED}EMERGENCY PRIVACY BLOCK${NC}"
+    echo "=================================="
+
+    log "WARN" "${WARNING_ICON} Emergency privacy block requested"
+
+    if ! check_privacy_manager; then
+        return 1
+    fi
+
+    # Activate emergency block
+    python3 "$PRIVACY_STATE_MANAGER" emergency
+
+    log "INFO" "${SUCCESS_ICON} Emergency block activated"
+
+    # Show new status
+    echo ""
+    show_status
+}
+
+# Allow network activity (transition out of strict mode)
+allow_network() {
+    echo -e "${SUCCESS_ICON} ${GREEN}Allowing Network Activity${NC}"
+    echo "==============================="
+
+    log "INFO" "${INFO_ICON} Network allow requested"
+
+    if ! check_privacy_manager; then
+        return 1
+    fi
+
+    # Force state update to check for downloads
+    python3 "$PRIVACY_STATE_MANAGER" update
+
+    log "INFO" "${SUCCESS_ICON} Network allowance processed"
+
+    # Show new status
+    echo ""
+    show_status
+}
+
+# Show detailed debug information
+show_debug() {
+    echo -e "${INFO_ICON} ${WHITE}Private LLM Cloud - Debug Information${NC}"
+    echo "======================================"
+
+    echo -e "${INFO_ICON} Environment:"
+    echo "  Script Directory: $SCRIPT_DIR"
+    echo "  State Manager: $PRIVACY_STATE_MANAGER"
+    echo "  Log File: $LOG_FILE"
+    echo "  State File: $STATE_FILE"
+
+    echo ""
+    echo -e "${INFO_ICON} Dependencies:"
+    if command -v python3 >/dev/null 2>&1; then
+        echo -e "  ${SUCCESS_ICON} python3: $(python3 --version)"
+    else
+        echo -e "  ${ERROR_ICON} python3: Not found"
+    fi
+
+    if command -v ss >/dev/null 2>&1; then
+        echo -e "  ${SUCCESS_ICON} ss: Available"
+    else
+        echo -e "  ${WARNING_ICON} ss: Not found (using netstat fallback)"
+    fi
+
+    if command -v iptables >/dev/null 2>&1; then
+        echo -e "  ${SUCCESS_ICON} iptables: Available"
+    else
+        echo -e "  ${WARNING_ICON} iptables: Not available (monitoring-only mode)"
+    fi
+
+    echo ""
+    echo -e "${INFO_ICON} File Status:"
+    if [ -f "$STATE_FILE" ]; then
+        echo -e "  ${SUCCESS_ICON} State file exists ($(stat -c %s "$STATE_FILE") bytes)"
+        echo "  Last modified: $(stat -c %y "$STATE_FILE")"
+    else
+        echo -e "  ${WARNING_ICON} State file not found"
+    fi
+
+    if [ -f "$LOG_FILE" ]; then
+        echo -e "  ${SUCCESS_ICON} Log file exists ($(stat -c %s "$LOG_FILE") bytes)"
+        echo "  Last 3 entries:"
+        tail -3 "$LOG_FILE" | sed 's/^/    /'
+    else
+        echo -e "  ${WARNING_ICON} Log file not found"
+    fi
+
+    echo ""
+    if check_privacy_manager; then
+        echo -e "${SUCCESS_ICON} Privacy state manager functional"
+        echo ""
+        echo -e "${INFO_ICON} Current Status:"
+        python3 "$PRIVACY_STATE_MANAGER" status
+    else
+        echo -e "${ERROR_ICON} Privacy state manager not functional"
+    fi
+}
+
+# Show help information
+show_help() {
+    echo -e "${PRIVACY_ICON} ${WHITE}Private LLM Cloud - Privacy Commands${NC}"
+    echo "====================================="
+    echo
+    echo "Usage: $(basename "$0") [COMMAND]"
+    echo
+    echo "Commands:"
+    echo "  status           Show current privacy status"
+    echo "  monitor          Real-time privacy monitoring"
+    echo "  summary          Quick privacy summary"
+    echo "  block-all        Emergency privacy block (strict mode)"
+    echo "  allow            Allow network activity"
+    echo "  debug            Show debug information"
+    echo "  help             Show this help message"
+    echo
+    echo "Aliases:"
+    echo "  monitor can also be called as: realtime, live, watch"
+    echo "  block-all can also be called as: emergency, strict"
+    echo "  allow can also be called as: permit, enable"
+    echo
+    echo "Examples:"
+    echo "  $(basename "$0") status         # Check current privacy state"
+    echo "  $(basename "$0") monitor        # Watch privacy state in real-time"
+    echo "  $(basename "$0") emergency      # Activate emergency block"
+    echo
+    echo "Note: This script requires Python 3 and the privacy_state_manager.py module."
+}
+
+# Main command dispatcher
+main() {
+    local command="${1:-status}"
+
+    case "$command" in
+        "status")
+            show_status
+            ;;
+        "monitor"|"realtime"|"live"|"watch")
+            monitor_privacy
+            ;;
+        "summary")
+            show_summary
+            ;;
+        "block-all"|"emergency"|"strict")
+            emergency_block
+            ;;
+        "allow"|"permit"|"enable")
+            allow_network
+            ;;
+        "debug")
+            show_debug
+            ;;
+        "help"|"--help"|"-h")
+            show_help
+            ;;
+        *)
+            echo -e "${ERROR_ICON} Unknown command: $command"
+            echo "Use '$(basename "$0") help' for usage information."
+            return 1
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@"
