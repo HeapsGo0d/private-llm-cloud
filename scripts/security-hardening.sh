@@ -95,7 +95,7 @@ remove_logging() {
     fi
 
     # Configure Python logging to local only
-    export PYTHONPATH="/app:$PYTHONPATH"
+    export PYTHONPATH="/app:${PYTHONPATH:-}"
 
     echo "✅ Secure logging configured"
 }
