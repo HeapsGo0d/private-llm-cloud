@@ -1,0 +1,62 @@
+{
+  "privacy": {
+    "disable_telemetry": true,
+    "local_only": true,
+    "offline_mode": false,
+    "encrypt_conversations": true,
+    "data_retention_days": 7
+  },
+  "performance": {
+    "keep_alive": "5m",
+    "max_loaded_models": 1,
+    "num_parallel": 1,
+    "flash_attention": true,
+    "gpu_memory_fraction": 0.9,
+    "context_length": 4096
+  },
+  "security": {
+    "allowed_origins": ["127.0.0.1", "localhost"],
+    "api_key_required": true,
+    "rate_limiting": {
+      "requests_per_minute": 60,
+      "burst_size": 10
+    },
+    "request_timeout": 300
+  },
+  "logging": {
+    "level": "INFO",
+    "local_only": true,
+    "retention_days": 7,
+    "structured": true,
+    "privacy_safe": true
+  },
+  "models": {
+    "auto_download": false,
+    "default_quantization": "Q4_K_M",
+    "storage_path": "/app/models",
+    "max_storage_gb": 500,
+    "verify_checksums": true
+  },
+  "api": {
+    "host": "0.0.0.0",
+    "port": 11434,
+    "cors_enabled": false,
+    "openai_compatible": true,
+    "streaming_enabled": true
+  },
+  "monitoring": {
+    "enable_health_checks": true,
+    "metrics_collection": true,
+    "cost_tracking": true,
+    "alert_thresholds": {
+      "memory_usage_percent": 90,
+      "disk_usage_percent": 85,
+      "cost_per_hour": 5.00
+    }
+  },
+  "experimental": {
+    "model_optimization": true,
+    "batch_processing": false,
+    "distributed_inference": false
+  }
+}

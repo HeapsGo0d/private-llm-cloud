@@ -1,0 +1,78 @@
+{
+  "privacy": {
+    "mode": "maximum",
+    "disable_signup": true,
+    "disable_community_sharing": true,
+    "disable_message_rating": true,
+    "disable_analytics": true,
+    "local_storage_only": true,
+    "encrypt_conversations": true,
+    "auto_purge_days": 7
+  },
+  "authentication": {
+    "enable_login": true,
+    "default_user_role": "user",
+    "session_timeout_hours": 24,
+    "require_api_key": true,
+    "enforce_ip_allowlist": true,
+    "multi_factor_auth": false
+  },
+  "interface": {
+    "theme": "dark",
+    "language": "en",
+    "show_admin_details": false,
+    "enable_file_upload": false,
+    "enable_voice_input": false,
+    "enable_image_generation": false,
+    "model_selector_visible": true
+  },
+  "api": {
+    "ollama_base_url": "http://ollama:11434",
+    "timeout_seconds": 300,
+    "max_tokens": 4096,
+    "temperature": 0.7,
+    "enable_streaming": true,
+    "rate_limit_requests": 100
+  },
+  "security": {
+    "content_security_policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
+    "secure_cookies": true,
+    "cors_origins": ["http://localhost:3000"],
+    "x_frame_options": "DENY",
+    "referrer_policy": "no-referrer"
+  },
+  "storage": {
+    "data_dir": "/app/backend/data",
+    "max_conversation_history": 1000,
+    "auto_cleanup": true,
+    "backup_enabled": true,
+    "compression_enabled": true
+  },
+  "features": {
+    "enable_websocket": false,
+    "enable_rag": false,
+    "enable_tools": false,
+    "enable_functions": false,
+    "enable_code_execution": false,
+    "enable_web_search": false
+  },
+  "monitoring": {
+    "enable_usage_stats": true,
+    "enable_performance_metrics": true,
+    "enable_error_reporting": false,
+    "log_level": "INFO"
+  },
+  "customization": {
+    "app_name": "Private LLM Cloud",
+    "app_description": "Maximum Privacy LLM Inference",
+    "privacy_notice": "This system operates with maximum privacy. No data is transmitted externally.",
+    "footer_text": "🔒 Private LLM Cloud - Maximum Privacy Mode",
+    "custom_css": "/app/web/custom.css"
+  },
+  "advanced": {
+    "enable_dev_mode": false,
+    "debug_mode": false,
+    "profiling_enabled": false,
+    "experimental_features": false
+  }
+}

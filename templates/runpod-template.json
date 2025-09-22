@@ -1,0 +1,88 @@
+{
+  "name": "Private LLM Cloud - Maximum Privacy",
+  "description": "Production-ready private LLM inference with maximum privacy and security. Supports any HuggingFace model with intelligent GPU sizing and cost optimization.",
+  "readme": "# Private LLM Cloud - Maximum Privacy\n\n## 🔒 Privacy-First LLM Inference\n\nThis template provides a complete, production-ready system for running private LLM inference with maximum privacy and security.\n\n### ✨ Key Features\n\n- **Complete Privacy Isolation**: No external data transmission after setup\n- **Encrypted Storage**: All conversations and models encrypted at rest\n- **Zero Telemetry**: No tracking, logging, or data collection\n- **OpenAI-Compatible API**: Works with iOS apps like Pal Chat\n- **Intelligent GPU Sizing**: Automatic VRAM calculation and optimization\n- **Cost Optimization**: Right-sized GPU recommendations\n- **Emergency Purge**: Secure data deletion capabilities\n\n### 🚀 Quick Start\n\n1. **Deploy Pod**: Use this template to create your pod\n2. **Access Web UI**: Connect to port 3000 for model management\n3. **Download Models**: Use the built-in model manager\n4. **Start Chatting**: OpenAI-compatible API on port 11434\n\n### 🔧 Configuration\n\nSet these environment variables for your needs:\n\n- `PRIVACY_MODE=maximum` - Enable maximum privacy\n- `HF_TOKEN=your_token` - HuggingFace token for model downloads\n- `API_KEY=your_key` - Secure API access key\n- `ALLOWED_IPS=your_ip` - IP allowlist for security\n\n### 📱 iOS Integration\n\nConnect any OpenAI-compatible app:\n\n1. Set API endpoint to `https://your-pod-id.runpod.net`\n2. Use your API_KEY for authentication\n3. Select your downloaded model\n\n### 🛡️ Privacy Verification\n\n- Visit `/privacy-dashboard.html` to monitor privacy status\n- All data stays on your pod - nothing sent externally\n- Emergency purge available if needed\n\n### 💰 Cost Optimization\n\n- Built-in VRAM calculator recommends optimal GPU\n- Auto-shutdown after idle time\n- Cost monitoring and alerts\n\n### 🔍 Supported Models\n\n- Any HuggingFace model (7B to 120B+)\n- GGUF, GPTQ, AWQ, safetensors formats\n- Automatic format detection and conversion\n- Intelligent quantization recommendations\n\n---\n\n**Security Note**: This system is designed for maximum privacy. Always verify your setup meets your security requirements before processing sensitive data.",
+  "dockerArgs": "",
+  "containerDiskInGb": 50,
+  "volumeInGb": 200,
+  "volumeMountPath": "/app/models",
+  "ports": "3000:3000/http,11434:11434/http,8000:8000/http",
+  "image": "ghcr.io/private-llm-cloud/private-llm:latest",
+  "env": [
+    {
+      "key": "PRIVACY_MODE",
+      "value": "maximum",
+      "description": "Privacy protection level (maximum recommended)"
+    },
+    {
+      "key": "DISABLE_TELEMETRY",
+      "value": "true",
+      "description": "Disable all telemetry and tracking"
+    },
+    {
+      "key": "ENCRYPT_STORAGE",
+      "value": "true",
+      "description": "Encrypt all stored data"
+    },
+    {
+      "key": "API_KEY",
+      "value": "{{RANDOM_PASSWORD}}",
+      "description": "Secure API access key (auto-generated)"
+    },
+    {
+      "key": "HF_TOKEN",
+      "value": "",
+      "description": "HuggingFace token for model downloads (optional but recommended)"
+    },
+    {
+      "key": "ALLOWED_IPS",
+      "value": "0.0.0.0/0",
+      "description": "IP allowlist for security (set to your IP for maximum security)"
+    },
+    {
+      "key": "DEFAULT_QUANTIZATION",
+      "value": "Q4_K_M",
+      "description": "Default model quantization level"
+    },
+    {
+      "key": "AUTO_SHUTDOWN_IDLE_MINUTES",
+      "value": "60",
+      "description": "Auto-shutdown after idle time (0 to disable)"
+    },
+    {
+      "key": "ENABLE_MONITORING",
+      "value": "true",
+      "description": "Enable cost and resource monitoring"
+    },
+    {
+      "key": "MAX_CONCURRENT_REQUESTS",
+      "value": "10",
+      "description": "Maximum concurrent API requests"
+    },
+    {
+      "key": "LOG_LEVEL",
+      "value": "INFO",
+      "description": "Logging level (DEBUG, INFO, WARNING, ERROR)"
+    }
+  ],
+  "category": "AI/ML",
+  "isPublic": true,
+  "isServerless": false,
+  "minGpuCount": 1,
+  "maxGpuCount": 1,
+  "gpuTypes": [
+    "RTX A4000",
+    "RTX A5000",
+    "RTX A6000",
+    "RTX 3090",
+    "RTX 4090",
+    "A100-40GB",
+    "A100-80GB",
+    "H100"
+  ],
+  "supportedCudaVersions": ["11.8", "12.0", "12.1"],
+  "minMemoryInGb": 16,
+  "minVcpuCount": 4,
+  "startScript": "#!/bin/bash\nset -e\n\necho \"🔒 Starting Private LLM Cloud...\"\n\n# Set permissions\nchmod +x /app/scripts/*.sh\n\n# Apply security hardening\n/app/scripts/security-hardening.sh\n\n# Setup privacy controls\n/app/scripts/setup-privacy.sh\n\n# Start services\n/app/scripts/startup.sh\n\necho \"✅ Private LLM Cloud is ready!\"\necho \"📊 Web UI: http://localhost:3000\"\necho \"🔌 API: http://localhost:11434\"\necho \"🛡️ Privacy Dashboard: http://localhost:3000/privacy-dashboard.html\"\n\n# Keep container running\ntail -f /dev/null",
+  "notes": "This template provides a complete private LLM inference solution with maximum privacy protection. It includes model management, VRAM calculation, cost optimization, and OpenAI-compatible APIs. Perfect for sensitive applications requiring complete data isolation."
+}

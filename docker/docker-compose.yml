@@ -1,0 +1,153 @@
+version: '3.8'
+
+services:
+  ollama:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.privacy-focused
+    container_name: private-llm-ollama
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_models:/app/models
+      - ollama_data:/app/data
+      - ollama_logs:/app/logs
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 1G
+    environment:
+      - PRIVACY_MODE=${PRIVACY_MODE:-maximum}
+      - DISABLE_TELEMETRY=${DISABLE_TELEMETRY:-true}
+      - ENCRYPT_STORAGE=${ENCRYPT_STORAGE:-true}
+      - API_KEY=${API_KEY}
+      - HF_TOKEN=${HF_TOKEN}
+      - ALLOWED_IPS=${ALLOWED_IPS:-127.0.0.1}
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+    read_only: false
+    deploy:
+      resources:
+        limits:
+          memory: ${MEMORY_LIMIT:-32G}
+        reservations:
+          memory: 4G
+    networks:
+      - private-llm-network
+
+  webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: private-llm-webui
+    restart: unless-stopped
+    ports:
+      - "${WEB_UI_PORT:-3000}:8080"
+    volumes:
+      - webui_data:/app/backend/data
+      - webui_config:/app/backend/config
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 500M
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - WEBUI_SECRET_KEY=${API_KEY}
+      - ENABLE_SIGNUP=false
+      - DEFAULT_USER_ROLE=user
+      - ENABLE_LOGIN_FORM=true
+      - WEBUI_AUTH=${ENABLE_AUTH:-true}
+    depends_on:
+      - ollama
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: false
+    networks:
+      - private-llm-network
+
+  secure-proxy:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.proxy
+    container_name: private-llm-proxy
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - proxy_logs:/app/logs
+      - ./configs/nginx-secure.conf:/etc/nginx/nginx.conf:ro
+    environment:
+      - API_KEY=${API_KEY}
+      - ALLOWED_IPS=${ALLOWED_IPS:-127.0.0.1}
+      - RATE_LIMIT=${RATE_LIMIT:-100}
+    depends_on:
+      - ollama
+      - webui
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - private-llm-network
+
+  monitor:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.monitor
+    container_name: private-llm-monitor
+    restart: unless-stopped
+    volumes:
+      - monitor_data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - ENABLE_MONITORING=${ENABLE_MONITORING:-true}
+      - ALERT_EMAIL=${ALERT_EMAIL}
+      - COST_ALERT_THRESHOLD=${COST_ALERT_THRESHOLD:-50.00}
+    depends_on:
+      - ollama
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - private-llm-network
+
+volumes:
+  ollama_models:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${MODEL_STORAGE_PATH:-./volumes/models}
+      o: bind
+  ollama_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${DATA_STORAGE_PATH:-./volumes/data}
+      o: bind
+  ollama_logs:
+    driver: local
+  webui_data:
+    driver: local
+  webui_config:
+    driver: local
+  proxy_logs:
+    driver: local
+  monitor_data:
+    driver: local
+
+networks:
+  private-llm-network:
+    driver: bridge
+    internal: ${OFFLINE_MODE:-false}
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24

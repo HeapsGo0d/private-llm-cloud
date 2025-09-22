@@ -1,0 +1,82 @@
+# Multi-stage build for minimal attack surface
+FROM python:3.11-slim as base
+
+# Security: Create non-root user early
+RUN groupadd -r llmuser && useradd -r -g llmuser -d /app -s /bin/bash llmuser
+
+# Install system dependencies and security tools
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    wget \
+    gnupg \
+    ca-certificates \
+    unzip \
+    build-essential \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Ollama
+RUN curl -fsSL https://ollama.ai/install.sh | sh
+
+# Build stage for Python dependencies
+FROM base as builder
+
+WORKDIR /app
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+# Production stage
+FROM base as production
+
+# Security: Disable unnecessary services and remove package managers
+RUN apt-get update && apt-get remove -y \
+    curl \
+    wget \
+    && apt-get autoremove -y \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    /tmp/* \
+    /var/tmp/*
+
+# Copy Python packages from builder
+COPY --from=builder /root/.local /home/llmuser/.local
+
+# Create necessary directories with proper permissions
+RUN mkdir -p /app/models /app/data /app/logs /app/configs /app/scripts /app/api /app/web \
+    && chown -R llmuser:llmuser /app
+
+# Copy application files
+COPY --chown=llmuser:llmuser scripts/ /app/scripts/
+COPY --chown=llmuser:llmuser api/ /app/api/
+COPY --chown=llmuser:llmuser web/ /app/web/
+COPY --chown=llmuser:llmuser configs/ /app/configs/
+
+# Make scripts executable
+RUN chmod +x /app/scripts/*.sh
+
+# Switch to non-root user
+USER llmuser
+WORKDIR /app
+
+# Set PATH to include user's local bin
+ENV PATH="/home/llmuser/.local/bin:$PATH"
+
+# Security: Set environment variables for privacy
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    DISABLE_TELEMETRY=true \
+    PRIVACY_MODE=maximum \
+    ENCRYPT_STORAGE=true
+
+# Expose necessary ports
+EXPOSE 3000 11434
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:11434/api/tags || exit 1
+
+# Start script that handles privacy setup and service startup
+CMD ["/app/scripts/startup.sh"]

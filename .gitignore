@@ -1,0 +1,78 @@
+# Environment files
+.env
+.env.local
+.env.production
+
+# Model files and data
+models/
+data/
+conversations/
+backups/
+
+# Logs
+logs/
+*.log
+
+# Docker volumes
+volumes/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Secrets and keys
+*.key
+*.pem
+*.p12
+secrets/
+keys/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Docker override files
+docker-compose.override.yml
+
+# Cloud provider configs (may contain sensitive data)
+runpod-config.json
+vast-config.json
+
+# User-specific configurations
+user-config.json
+local-settings.json

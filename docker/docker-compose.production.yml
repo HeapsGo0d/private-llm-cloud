@@ -1,0 +1,149 @@
+version: '3.8'
+
+services:
+  ollama:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.privacy-focused
+    container_name: private-llm-ollama-prod
+    restart: always
+    ports:
+      - "11434:11434"
+    volumes:
+      - /mnt/models:/app/models
+      - /mnt/data:/app/data
+      - ollama_logs:/app/logs
+    environment:
+      - PRIVACY_MODE=maximum
+      - DISABLE_TELEMETRY=true
+      - ENCRYPT_STORAGE=true
+      - OFFLINE_MODE=true
+      - API_KEY_FILE=/run/secrets/api_key
+      - HF_TOKEN_FILE=/run/secrets/hf_token
+    secrets:
+      - api_key
+      - hf_token
+    security_opt:
+      - no-new-privileges:true
+      - seccomp:unconfined
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+    read_only: false
+    tmpfs:
+      - /tmp:rw,size=2G
+    deploy:
+      resources:
+        limits:
+          memory: 64G
+        reservations:
+          memory: 8G
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    networks:
+      - private-llm-network-prod
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: private-llm-webui-prod
+    restart: always
+    ports:
+      - "3000:8080"
+    volumes:
+      - webui_data_prod:/app/backend/data
+      - webui_config_prod:/app/backend/config
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - WEBUI_SECRET_KEY_FILE=/run/secrets/webui_secret
+      - ENABLE_SIGNUP=false
+      - DEFAULT_USER_ROLE=user
+      - ENABLE_LOGIN_FORM=true
+      - WEBUI_AUTH=true
+      - DATA_DIR=/app/backend/data
+    secrets:
+      - webui_secret
+    depends_on:
+      - ollama
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: false
+    tmpfs:
+      - /tmp:rw,size=500M
+    networks:
+      - private-llm-network-prod
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  nginx:
+    image: nginx:alpine
+    container_name: private-llm-nginx-prod
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./configs/nginx-secure.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - ollama
+      - webui
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+      - NET_BIND_SERVICE
+    networks:
+      - private-llm-network-prod
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+secrets:
+  api_key:
+    external: true
+  hf_token:
+    external: true
+  webui_secret:
+    external: true
+
+volumes:
+  ollama_logs:
+    driver: local
+  webui_data_prod:
+    driver: local
+  webui_config_prod:
+    driver: local
+  nginx_logs:
+    driver: local
+
+networks:
+  private-llm-network-prod:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.21.0.0/24

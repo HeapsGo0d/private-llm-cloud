@@ -1,0 +1,91 @@
+# Docker Compose Override Example
+# Copy this file to docker-compose.override.yml and customize for your environment
+
+version: '3.8'
+
+services:
+  ollama:
+    environment:
+      # Custom API key (generate a secure one)
+      - API_KEY=your_secure_api_key_here
+
+      # HuggingFace token for model downloads
+      - HF_TOKEN=your_huggingface_token_here
+
+      # IP allowlist (set to your IP for maximum security)
+      - ALLOWED_IPS=127.0.0.1,192.168.1.100
+
+      # Privacy settings
+      - PRIVACY_MODE=maximum
+      - OFFLINE_MODE=false
+      - ENCRYPT_STORAGE=true
+
+      # Performance tuning
+      - GPU_MEMORY_FRACTION=0.9
+      - MAX_CONCURRENT_REQUESTS=5
+
+      # Auto-shutdown (minutes of inactivity)
+      - AUTO_SHUTDOWN_IDLE_MINUTES=30
+
+    # GPU configuration (uncomment for NVIDIA GPU support)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+    # Volume mounts for persistent storage
+    volumes:
+      - ./local-models:/app/models
+      - ./local-data:/app/data
+      - ./local-logs:/app/logs
+
+    # Memory limits (adjust based on your system)
+    mem_limit: 16g
+    memswap_limit: 16g
+
+  webui:
+    environment:
+      # Web UI specific settings
+      - WEBUI_SECRET_KEY=your_webui_secret_key_here
+      - ENABLE_SIGNUP=false
+      - DEFAULT_USER_ROLE=user
+
+    # Port customization (change if needed)
+    ports:
+      - "3000:8080"
+
+  # Development tools (uncomment for development)
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   environment:
+  #     - PGADMIN_DEFAULT_EMAIL=admin@example.com
+  #     - PGADMIN_DEFAULT_PASSWORD=password
+  #   ports:
+  #     - "8080:80"
+  #   depends_on:
+  #     - postgres
+
+  # postgres:
+  #   image: postgres:15
+  #   environment:
+  #     - POSTGRES_DB=llm_cloud
+  #     - POSTGRES_USER=llm_user
+  #     - POSTGRES_PASSWORD=password
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+
+# Additional volumes for development
+volumes:
+  postgres_data:
+    driver: local
+
+# Custom networks for development
+networks:
+  private-llm-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
